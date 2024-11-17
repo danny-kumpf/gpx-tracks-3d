@@ -56,7 +56,7 @@ def read_gpx_file(gpx_file_path):
         gpx = gpxpy.parse(gpx_file)
     return gpx
 
-def get_origin(gpx):
+def get_first_track_point(gpx):
     """
     Extracts the first track point to use as the origin.
 
@@ -97,20 +97,20 @@ def precompute_origin_parameters(lat_deg, lon_deg):
         lon_deg (float): Longitude of the origin in degrees.
 
     Returns:
-        sin_latitude (float): Sine of the origin's latitude in radians.
-        cos_latitude (float): Cosine of the origin's latitude in radians.
-        sin_longitude (float): Sine of the origin's longitude in radians.
-        cos_longitude (float): Cosine of the origin's longitude in radians.
+        sin_lat (float): Sine of the origin's latitude in radians.
+        cos_lat (float): Cosine of the origin's latitude in radians.
+        sin_lon (float): Sine of the origin's longitude in radians.
+        cos_lon (float): Cosine of the origin's longitude in radians.
     """
     # Convert latitude and longitude to radians
     lat_rad = math.radians(lat_deg)
     lon_rad = math.radians(lon_deg)
     # Precompute sines and cosines
-    sin_latitude = math.sin(lat_rad)
-    cos_latitude = math.cos(lat_rad)
-    sin_longitude = math.sin(lon_rad)
-    cos_longitude = math.cos(lon_rad)
-    return sin_latitude, cos_latitude, sin_longitude, cos_longitude
+    sin_lat = math.sin(lat_rad)
+    cos_lat = math.cos(lat_rad)
+    sin_lon = math.sin(lon_rad)
+    cos_lon = math.cos(lon_rad)
+    return sin_lat, cos_lat, sin_lon, cos_lon
 
 def extract_points(gpx):
     """
@@ -120,7 +120,7 @@ def extract_points(gpx):
         gpx (gpxpy.gpx.GPX): Parsed GPX object.
 
     Returns:
-        points (list): List of tuples containing (lon_deg, lat_deg, altitude_m).
+        points (np.ndarray): Nx3 lon_deg, lat_deg, altitude_m
     """
     points = []
     for track in gpx.tracks:
@@ -130,19 +130,27 @@ def extract_points(gpx):
                 lat_deg = point.latitude    # Degrees
                 altitude_m = point.elevation if point.elevation is not None else 0.0  # Meters
                 points.append((lon_deg, lat_deg, altitude_m))
-    return points
+
+    return np.array(points)
+
+
+def remove_after_highest_elev(points):
+    index_max = max(range(len(points)), key=lambda idx: points[idx][2])
+    print(f"Index of maximum elevation: {index_max} (elevation = {points[index_max][2]} m")
+    return points[:index_max]
+
 
 def convert_points_to_enu(points, origin, transformer):
     """
     Converts a list of geodetic coordinates to ENU coordinates relative to the origin.
 
     Parameters:
-        points (list): List of tuples containing (lon_deg, lat_deg, altitude_m).
+        points (np.ndarray): Nx3 lon_deg, lat_deg, altitude_m.
         origin (tuple): Tuple containing (lon_deg, lat_deg, altitude_m).
         transformer (pyproj.Transformer): Transformer for LLA to ECEF conversion.
 
     Returns:
-        enu_points (list): List of tuples containing (east_m, north_m, up_m).
+        enu_points (np.ndarraay): Nx3 east_m, north_m, up_m
     """
     # Unpack origin coordinates
     lon_origin_deg, lat_origin_deg, altitude_origin_m = origin
@@ -156,9 +164,11 @@ def convert_points_to_enu(points, origin, transformer):
     x0_m, y0_m, z0_m = transformer.transform(
         lon_origin_deg, lat_origin_deg, altitude_origin_m
     )
-    enu_points = []
 
-    for lon_deg, lat_deg, altitude_m in points:
+    enu_points = np.ndarray(points.shape)
+    for idx in range(points.shape[0]):
+        lon_deg, lat_deg, altitude_m = points[idx]
+
         # Convert current point to ECEF coordinates
         x_m, y_m, z_m = transformer.transform(
             lon_deg, lat_deg, altitude_m
@@ -181,8 +191,31 @@ def convert_points_to_enu(points, origin, transformer):
                 + sin_lat0 * dz_m
         )
 
-        enu_points.append((east_m, north_m, up_m))
+        enu_points[idx] = np.array([east_m, north_m, up_m])
+
     return enu_points
+
+
+def filter_min_distance(enu_points, min_dist_m):
+    """
+    Remove a point if it is not at least min_dist_m away from the previous point
+    :param enu_points (np.ndarray):
+    :param min_dist_m (float):
+    :return:
+    """
+    if len(enu_points) == 0:
+        return enu_points
+
+    # Initialize the list with the first point
+    filtered_points = [enu_points[0]]
+
+    for point in enu_points[1:]:
+        last_point = filtered_points[-1]
+        if distance(point, last_point) >= min_dist_m:
+            filtered_points.append(point)
+
+    return np.array(filtered_points)
+
 
 def write_csv(csv_file_path, enu_points):
     """
@@ -202,16 +235,13 @@ def write_csv(csv_file_path, enu_points):
 
 
 def distance(point_1, point_2):
-    dx = point_1[0] - point_2[0]
-    dy = point_1[1] - point_2[1]
-    dz = point_1[2] - point_2[2]
-    return math.sqrt(dx * dx + dy * dy + dz * dz)
+    return np.linalg.norm(point_1 - point_2)
 
 
 FUSION_360_MODEL_MM_PER_CSV = 10
 
 
-def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, model_w_h_mm):
+def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, model_w_h_mm, max_elev_m, out_n_back):
     """
     Main function to convert a GPX file to a CSV file with ENU coordinates relative to the first track point.
 
@@ -224,87 +254,51 @@ def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, mo
 
     # Read the STL file
     vertices = read_stl_vertices(stl_path)
-    z_max = vertices[:, 2].max()
+    z_max_mmm = vertices[:, 2].max()
     print(f"STL Number of vertices: {len(vertices)}")
     print(f"STL X range: {vertices[:, 0].min()} to {vertices[:, 0].max()}")
     print(f"STL Y range: {vertices[:, 1].min()} to {vertices[:, 1].max()}")
     print(f"STL Z range: {vertices[:, 2].min()} to {vertices[:, 2].max()}")
 
-    # Get the origin point (lon, lat, alt of lower left corner of model)
-    origin = (box_lower_left[0], box_lower_left[1], 1479)
-
     # Create the LLA to ECEF transformer once
     transformer = create_transformer()
 
-    # Extract all points from the GPX file
-    points = extract_points(gpx)
-
-    # Convert points to ENU coordinates relative to the origin
-    enu_points = convert_points_to_enu(points, origin, transformer)
-
-    # Fusion 360 interprets csv valuesu as "0.1 in csv = 1mm in fusion360"
-    # 8000m real -> 100 mm on model (approx.)
-    # 100 mm in fusion360 = 10.0 in the csv
-    # so 8000.0 in the csv (real) -> 10.0 in the csv
-    # scale factor is divide by 800
-    box_enu = convert_points_to_enu([box_upper_right, box_lower_left], origin, transformer)
+    box_enu = convert_points_to_enu(np.array([box_upper_right, box_lower_left]),
+                                    origin=get_first_track_point(gpx),
+                                    transformer=transformer)
     box_diag_m = distance(box_enu[0], box_enu[1])
     print(f"Box diagonal meters = {box_diag_m}")
     model_diag_mm = math.sqrt(model_w_h_mm[0] ** 2 + model_w_h_mm[1] ** 2)
-    # print(f"Model diagonal mm = {model_diag_mm}")
-    # csv_diag = model_diag_mm / FUSION_360_MODEL_MM_PER_CSV
-    # print(f"CSV diagonal needs to be: {csv_diag}")
-    # scale_factor = csv_diag / box_diag_m
-    scale_factor = model_diag_mm / box_diag_m
-    print(f"Meters-to-model-mm scale factor: {scale_factor}")
-    enu_points = scale(enu_points, scale_factor)
+    mmm_per_m = model_diag_mm / box_diag_m  # model mm per meter
+    print(f"Meters-to-model-mm scale factor: {mmm_per_m}")
+
+    # Get the origin point (lon, lat, alt of lower left corner of model)
+    origin = (box_lower_left[0],
+              box_lower_left[1],
+              max_elev_m - (z_max_mmm / mmm_per_m))
+    print(f"Elevation of origin (m): {origin[2]}")
+
+    # Extract all points from the GPX file
+    points = extract_points(gpx)
+    if out_n_back:
+        points = remove_after_highest_elev(points)
+
+    # Convert points to ENU coordinates relative to the origin
+    enu_points = convert_points_to_enu(points, origin, transformer)
+    enu_points = filter_min_distance(enu_points, 30)
+    enu_points *= mmm_per_m
 
     # TODO: downsample alg that keeps detail where needed adaptively
     enu_points = downsample_to(enu_points, 100)
 
-    enu_points_np = np.ndarray((len(enu_points), 3))
-    for idx in range(len(enu_points)):
-        enu_points_np[idx][0] = enu_points[idx][0]
-        enu_points_np[idx][1] = enu_points[idx][1]
-        enu_points_np[idx][2] = enu_points[idx][2]
-
-    closest_vertices = find_nearest_vertices(enu_points_np, vertices)
-    closest_vertices = scale(closest_vertices, 1.0/FUSION_360_MODEL_MM_PER_CSV)
-
+    closest_vertices = find_nearest_vertices(enu_points, vertices)
     return closest_vertices
 
 
 def downsample_to(points, n_desired):
-    n = len(points)
+    n = points.shape[0]
     take_every_nth = n // n_desired
-    new_points = []
-    for i in range(n):
-        if i % take_every_nth == 0:
-            new_points.append(points[i])
-    return new_points
-
-
-def scale(enu_points, scale_factor):
-    """
-    0.1 in the csv = 1mm in Fusion360
-    :return:
-    """
-    # 8000m real -> 100 mm on model
-    # 100 mm in fusion360 = 10.0 in the csv
-    # so 8000.0 in the csv (real) -> 10.0 in the csv
-    # scale factor is divide by 800
-    enu_scaled = []
-    for east_m, north_m, up_m in enu_points:
-        enu_scaled.append((east_m*scale_factor,
-                           north_m*scale_factor,
-                           up_m*scale_factor))
-    return enu_scaled
-
-
-# Example usage:
-# Replace 'input.gpx' with your GPX file path
-# Replace 'output.csv' with your desired CSV output path
-# gpx_to_enu_csv('input.gpx', 'output.csv')
+    return points[::take_every_nth]
 
 
 # In fusion 360, we have to:
@@ -322,32 +316,40 @@ def scale(enu_points, scale_factor):
 
 if __name__ == "__main__":
 
-    ## Inputs
+    ###### Inputs
 
+    ## South Arapaho
     stl_path = r'D:\Projects\Python\GpxTracks3d\data\south_arapaho\10m_-105.65_40.01_tile_1_1.STL'
     gpx_path = r'D:\Projects\Python\GpxTracks3d\data\south_arapaho\South_Arapaho.gpx'
-    csv_out_path = r'south_arapaho.csv'
-
-    # Get these values from expanding the "Area Selection Box" field of touchterrain
-    # data/boulder_three_peaks
-    # box_upper_right = (-105.25157829589844, 40.01993951046981, 0)
-    # box_lower_left = (-105.33517738647461, 39.92443275264491, 0)
-    # model_w_h_mm = (100, 148.4)
-
-    # data/south_arapaho
+    csv_out_path = r'south_arapaho2.csv'
     box_upper_right = (-105.6259717590332, 40.03538452772285, 0)
     box_lower_left = (-105.67412277526856, 39.99094728785393, 0)
     model_w_h_mm = (30, 36)
+    max_elev_m = 4117.2
+    out_n_back = True
+    ##
 
-    ## End Inputs
+    ## Boulder Three Peaks
+    # stl_path = r'D:\Projects\Python\GpxTracks3d\data\boulder_three_peaks\10m_-105.29_39.97_tile_1_1.STL'
+    # gpx_path = r'D:\Projects\Python\GpxTracks3d\data\boulder_three_peaks\boulder_three_peaks.gpx'
+    # csv_out_path = r'boulder_three_peaks.csv'
+    # box_upper_right = (-105.25157829589844, 40.01993951046981, 0)
+    # box_lower_left = (-105.33517738647461, 39.92443275264491, 0)
+    # model_w_h_mm = (100, 148.4)
+    # max_elev_m = 2603
+    ##
+
+    ####### End Inputs
 
     snapped_points = snap_gpx_to_stl(gpx_path,
                                      stl_path,
                                      box_upper_right,
                                      box_lower_left,
-                                     model_w_h_mm)
+                                     model_w_h_mm,
+                                     max_elev_m,
+                                     out_n_back)
 
-    snapped_points_csv = []
-    for row in snapped_points:
-        snapped_points_csv.append((row[0], row[1], row[2]))
-    write_csv(csv_out_path, snapped_points_csv)
+    # Fusion 360 interprets 0.1 in the csv to mean 1mm. So we need to account
+    # for this in the csv that we write for fusion360.
+    scaled_snapped = snapped_points * 1.0/FUSION_360_MODEL_MM_PER_CSV
+    write_csv(csv_out_path, scaled_snapped)
