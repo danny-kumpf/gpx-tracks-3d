@@ -3,10 +3,14 @@ import csv
 import math
 import json
 import os
+import pyproj
 from pyproj import Transformer
 import numpy as np
 from stl import mesh
 from scipy.spatial import KDTree
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import requests
 
 def read_stl_vertices(stl_file_path):
     """
@@ -42,6 +46,18 @@ def find_nearest_vertices(points, vertices):
     # Query the tree for nearest neighbors
     distances, indices = tree.query(points)
     nearest_vertices = vertices[indices]
+
+    # If the original track (before the snap-to-vertices) was some fixed offset
+    # above/below the STL surface, then we'd like to first raise/lower the whole
+    # track until it's closer to the surface, and then re-try the snap. We don't
+    # want to snap with the track too far away from the surface, because we
+    # could snap to the wrong points
+    avg_z_diff_mmm = np.mean(points[:,2] - nearest_vertices[:,2])
+    print(f"Average height of track above STL: {avg_z_diff_mmm} mmm")
+    if abs(avg_z_diff_mmm) > 0.01:
+        points[:, 2] -= avg_z_diff_mmm
+        return find_nearest_vertices(points, vertices)
+
     return nearest_vertices
 
 def read_gpx_file(gpx_file_path):
@@ -79,7 +95,7 @@ def get_first_track_point(gpx):
     # If no tracks with points are found, raise an error
     raise ValueError("No track points found in the GPX file.")
 
-def create_transformer():
+def create_transformer_lla_to_ecef():
     """
     Creates and returns the LLA (Latitude, Longitude, Altitude) to ECEF (Earth-Centered, Earth-Fixed) transformer.
 
@@ -88,6 +104,17 @@ def create_transformer():
     """
     # Initialize the transformer once for efficiency
     transformer = Transformer.from_crs("epsg:4979", "epsg:4978", always_xy=True)
+    return transformer
+
+def create_transformer_ecef_to_lla():
+    """
+    Creates and returns the ECEF (Earth-Centered, Earth-Fixed) to LLA (Latitude, Longitude, Altitude) transformer.
+
+    Returns:
+        transformer (pyproj.Transformer): Transformer object for ECEF to LLA conversion.
+    """
+    # Initialize the transformer once for efficiency
+    transformer = Transformer.from_crs("epsg:4978", "epsg:4979", always_xy=True)
     return transformer
 
 def precompute_origin_parameters(lat_deg, lon_deg):
@@ -266,7 +293,7 @@ def distance(point_1, point_2):
 FUSION_360_MODEL_MM_PER_CSV = 10
 
 
-def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, max_elev_m, hike_type):
+def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, hike_type):
     """
     Main function to convert a GPX file to a CSV file with ENU coordinates relative to the first track point.
 
@@ -290,7 +317,7 @@ def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, ma
     print(f"STL Z range: {z_range_mmm[0]} to {z_range_mmm[1]}")
 
     # Create the LLA to ECEF transformer once
-    transformer = create_transformer()
+    transformer = create_transformer_lla_to_ecef()
 
     box_enu = convert_points_to_enu(np.array([box_upper_right, box_lower_left]),
                                     origin=get_first_track_point(gpx),
@@ -305,10 +332,18 @@ def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, ma
     print(f"Meters-to-model-mm scale factor: {mmm_per_m}")
 
     # Get the origin point (lon, lat, alt of lower left corner of model)
+
+    # this elevation isn't super accurate, but we correct for it later by
+    # iteratively snapping to STL vertices
+    origin_elev = get_elevation_open_elevation(box_lower_left[1], box_lower_left[0])
+
+    print(f"Elevation of bottom-left corner ground surface: ~{origin_elev}")
+    _, origin_top_pt = highest_z_near_origin(vertices)
+    origin_elev -= origin_top_pt[2] / mmm_per_m
     origin = (box_lower_left[0],
               box_lower_left[1],
-              max_elev_m - (z_max_mmm / mmm_per_m))
-    print(f"Elevation of origin (m): {origin[2]}")
+              origin_elev)
+    print(f"Elevation of bottom-left model corner (m): ~{origin[2]}")
 
     # Extract all points from the GPX file
     points = extract_points(gpx)
@@ -317,14 +352,18 @@ def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, ma
 
     # Convert points to ENU coordinates relative to the origin
     enu_points = convert_points_to_enu(points, origin, transformer)
-    enu_points = filter_min_distance(enu_points, 40)
+    #plot_3d(enu_points)
+    enu_points = filter_min_distance(enu_points, 30)
     enu_points *= mmm_per_m  # convert to "model millimeters"
+    #plot_3d(enu_points)
 
     # TODO: downsample alg that keeps detail where needed adaptively
     enu_points = downsample_to(enu_points, 100)
+    #plot_3d(enu_points)
 
     snapped_to_vertices = find_nearest_vertices(enu_points, vertices)
     snapped_to_vertices = filter_identical(snapped_to_vertices)
+    #snapped_to_vertices = enu_points
 
     if hike_type == "LOOP":
         print("LOOP, putting first point at beginning")
@@ -333,6 +372,8 @@ def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, ma
         print(f"First point: {snapped_to_vertices[0]}")
         snapped_to_vertices = np.vstack((snapped_to_vertices, snapped_to_vertices[0]))
         print(f"Last point: {snapped_to_vertices[-1]}")
+    #plot_3d(snapped_to_vertices)
+
 
     return snapped_to_vertices
 
@@ -359,6 +400,123 @@ def load_from_json(json_path):
     with open(json_path, 'r') as f:
         data = json.load(f)
     return data
+
+
+def plot_3d(np_array):
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Scatter plot for individual points
+    ax.scatter(np_array[:,0], np_array[:,1], np_array[:,2], c='r', marker='o', label='Points')
+
+    # Line plot connecting the points
+    ax.plot(np_array[:,0], np_array[:,1], np_array[:,2], color='blue', label='Line')
+
+    # Add some labels for clarity
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+def highest_z_near_origin(points, radius=0.00001):
+    """
+    Find the index and coordinates of the point with the highest z-value
+    among points whose (x,y) are within `radius` of (0,0).
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Nx3 array of coordinates, where each row is [x, y, z].
+    radius : float, optional
+        Maximum distance from (0,0) in xy-plane to consider a point "close".
+        Default is 0.1.
+
+    Returns
+    -------
+    max_idx : int or None
+        The index of the point with the highest z among those close to (0,0).
+        Returns None if no points meet the criteria.
+    max_coord : np.ndarray or None
+        The coordinates [x, y, z] of the selected point.
+        Returns None if no points meet the criteria.
+    """
+    # Compute distances from origin in xy-plane
+    distances = np.sqrt(points[:,0]**2 + points[:,1]**2)
+
+    # Filter points that are within the given radius
+    close_mask = distances <= radius
+    close_points = points[close_mask]
+
+    if close_points.size == 0:
+        # No points are within the specified radius
+        return None, None
+
+    # Find the index of the max z among the filtered points
+    z_values = close_points[:, 2]
+    local_max_idx = np.argmax(z_values)
+
+    # Get the global index relative to the original array
+    global_indices = np.where(close_mask)[0]
+    max_idx = global_indices[local_max_idx]
+
+    max_coord = points[max_idx]
+
+    return max_idx, max_coord
+
+# def enu_to_lla(point, origin_lon_lat_alt):
+#     # Setup pyproj transformations
+#     wgs84_geod = pyproj.Geod(ellps='WGS84')
+#     lla = pyproj.Proj(proj='latlong', datum='WGS84')
+#     ecef = pyproj.Proj(proj='geocent', datum='WGS84', ellps='WGS84')
+#
+#     origin_lon_deg = origin_lon_lat_alt[0]
+#     origin_lat_deg = origin_lon_lat_alt[1]
+#     origin_alt_m = origin_lon_lat_alt[2]
+#
+#     # Convert LLA origin to ECEF
+#     x_origin_ecef, y_origin_ecef, z_origin_ecef = pyproj.transform(
+#         lla, ecef, origin_lon_deg, origin_lat_deg, origin_alt_m, radians=False)
+#
+#     # Compute rotation matrix from ENU to ECEF
+#     lat_rad = np.radians(origin_lat_deg)
+#     lon_rad = np.radians(origin_lon_deg)
+#
+#     R = np.array([
+#         [-np.sin(lon_rad),                  np.cos(lon_rad),                 0],
+#         [-np.sin(lat_rad)*np.cos(lon_rad), -np.sin(lat_rad)*np.sin(lon_rad), np.cos(lat_rad)],
+#         [ np.cos(lat_rad)*np.cos(lon_rad),  np.cos(lat_rad)*np.sin(lon_rad), np.sin(lat_rad)]
+#     ])
+#
+#     # ENU to ECEF increment
+#     dx, dy, dz = R.T.dot(np.array([point[0], point[1], point[2]]))
+#
+#     # Target ECEF coordinates
+#     x_ecef = x_origin_ecef + dx
+#     y_ecef = y_origin_ecef + dy
+#     z_ecef = z_origin_ecef + dz
+#
+#     # Convert ECEF back to LLA
+#     lon_target, lat_target, alt_target = pyproj.transform(ecef, lla, x_ecef, y_ecef, z_ecef, radians=False)
+#     return np.array([lon_target, lat_target, alt_target])
+
+def get_elevation_open_elevation(lat, lon):
+    """
+    Query the Open-Elevation API for the elevation of a given lat/lon.
+    Returns elevation in meters, or None if the query fails.
+    """
+    url = "https://api.open-elevation.com/api/v1/lookup"
+    params = {"locations": f"{lat}, {lon}"}
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+        elevation = data["results"][0]["elevation"]  # in meters
+        return elevation
+    except Exception as e:
+        print(f"Error retrieving elevation: {e}")
+        return None
 
 if __name__ == "__main__":
 
@@ -397,12 +555,11 @@ if __name__ == "__main__":
     ##
 
     ####### End Inputs
-    json_inputs = load_from_json(os.path.join("data", "tammany", "config.json"))
+    json_inputs = load_from_json(os.path.join("data", "jess_boulder_5_peaks", "config.json"))
     snapped_points = snap_gpx_to_stl(json_inputs["gpx_path"],
                                      json_inputs["stl_path"],
                                      json_inputs["box_upper_right"],
                                      json_inputs["box_lower_left"],
-                                     json_inputs["max_elev_m"],
                                      json_inputs["hike_type"])
 
     # Fusion 360 interprets 0.1 in the csv to mean 1mm. So we need to account
