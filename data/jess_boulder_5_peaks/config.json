@@ -1,7 +1,7 @@
 {
   "stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\jess_boulder_5_peaks\\10m_-105.30_39.99_tile_1_1.STL",
   "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\jess_boulder_5_peaks\\Welcome_to_Boulder_Anniversary_Edition_.gpx",
-  "csv_out_path": "data\\jess_boulder_5_peaks\\jess_boulder_5_peaks_f360.csv",
+  "csv_out_path": "data\\jess_boulder_5_peaks\\jess_boulder_5_peaks_AUTOCUT.csv",
   "box_upper_right": [-105.24883171386719, 40.05030170450594, 0],
   "box_lower_left": [-105.34908195800782, 39.92515552967144, 0],
   "hike_type": "POINT_TO_POINT"
