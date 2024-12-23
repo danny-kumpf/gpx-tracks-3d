@@ -58,7 +58,8 @@ def find_nearest_vertices(points, vertices):
         points[:, 2] -= avg_z_diff_mmm
         return find_nearest_vertices(points, vertices)
 
-    return nearest_vertices
+    return points
+    #return nearest_vertices
 
 def read_gpx_file(gpx_file_path):
     """
@@ -279,8 +280,6 @@ def write_csv(csv_file_path, enu_points):
     """
     with open(csv_file_path, 'w', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
-        # Write header with units specified
-        csv_writer.writerow(['east_m', 'north_m', 'up_m'])
         # Write data rows
         for east_m, north_m, up_m in enu_points:
             csv_writer.writerow([east_m, north_m, up_m])
@@ -293,89 +292,6 @@ def distance(point_1, point_2):
 FUSION_360_MODEL_MM_PER_CSV = 10
 
 
-def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, hike_type):
-    """
-    Main function to convert a GPX file to a CSV file with ENU coordinates relative to the first track point.
-
-    Parameters:
-        gpx_file_path (str): Path to the input GPX file.
-        csv_file_path (str): Path to the output CSV file.
-    """
-    # Read the GPX file
-    gpx = read_gpx_file(gpx_file_path)
-
-    # Read the STL file
-    vertices = read_stl_vertices(stl_path)
-    x_range_mmm = (vertices[:, 0].min(), vertices[:, 0].max())
-    y_range_mmm = (vertices[:, 1].min(), vertices[:, 1].max())
-    z_range_mmm = (vertices[:, 2].min(), vertices[:, 2].max())
-    z_max_mmm = z_range_mmm[1]
-
-    print(f"STL Number of vertices: {len(vertices)}")
-    print(f"STL X range: {x_range_mmm[0]} to {x_range_mmm[1]}")
-    print(f"STL Y range: {y_range_mmm[0]} to {y_range_mmm[1]}")
-    print(f"STL Z range: {z_range_mmm[0]} to {z_range_mmm[1]}")
-
-    # Create the LLA to ECEF transformer once
-    transformer = create_transformer_lla_to_ecef()
-
-    box_enu = convert_points_to_enu(np.array([box_upper_right, box_lower_left]),
-                                    origin=get_first_track_point(gpx),
-                                    transformer=transformer)
-    box_diag_m = distance(box_enu[0], box_enu[1])
-    print(f"Box diagonal meters = {box_diag_m}")
-
-    model_width_mmm = x_range_mmm[1] - x_range_mmm[0]
-    model_height_mmm = y_range_mmm[1] - y_range_mmm[0]
-    model_diag_mm = math.sqrt(model_width_mmm ** 2 + model_height_mmm ** 2)
-    mmm_per_m = model_diag_mm / box_diag_m  # model mm per meter
-    print(f"Meters-to-model-mm scale factor: {mmm_per_m}")
-
-    # Get the origin point (lon, lat, alt of lower left corner of model)
-
-    # this elevation isn't super accurate, but we correct for it later by
-    # iteratively snapping to STL vertices
-    origin_elev = get_elevation_open_elevation(box_lower_left[1], box_lower_left[0])
-
-    print(f"Elevation of bottom-left corner ground surface: ~{origin_elev}")
-    _, origin_top_pt = highest_z_near_origin(vertices)
-    origin_elev -= origin_top_pt[2] / mmm_per_m
-    origin = (box_lower_left[0],
-              box_lower_left[1],
-              origin_elev)
-    print(f"Elevation of bottom-left model corner (m): ~{origin[2]}")
-
-    # Extract all points from the GPX file
-    points = extract_points(gpx)
-    if hike_type == "OUT_AND_BACK":
-        points = remove_after_highest_elev(points)
-
-    # Convert points to ENU coordinates relative to the origin
-    enu_points = convert_points_to_enu(points, origin, transformer)
-    #plot_3d(enu_points)
-    enu_points = filter_min_distance(enu_points, 30)
-    enu_points *= mmm_per_m  # convert to "model millimeters"
-    #plot_3d(enu_points)
-
-    # TODO: downsample alg that keeps detail where needed adaptively
-    enu_points = downsample_to(enu_points, 100)
-    #plot_3d(enu_points)
-
-    snapped_to_vertices = find_nearest_vertices(enu_points, vertices)
-    snapped_to_vertices = filter_identical(snapped_to_vertices)
-    #snapped_to_vertices = enu_points
-
-    if hike_type == "LOOP":
-        print("LOOP, putting first point at beginning")
-        # Add a duplicate of the first point at the end, so that we get a closed
-        # loop. Saves some steps in fusion360.
-        print(f"First point: {snapped_to_vertices[0]}")
-        snapped_to_vertices = np.vstack((snapped_to_vertices, snapped_to_vertices[0]))
-        print(f"Last point: {snapped_to_vertices[-1]}")
-    #plot_3d(snapped_to_vertices)
-
-
-    return snapped_to_vertices
 
 
 def downsample_to(points, n_desired):
@@ -518,43 +434,93 @@ def get_elevation_open_elevation(lat, lon):
         print(f"Error retrieving elevation: {e}")
         return None
 
+
+def snap_gpx_to_stl(gpx_file_path, stl_path, box_upper_right, box_lower_left, hike_type):
+    """
+    Main function to convert a GPX file to a CSV file with ENU coordinates relative to the first track point.
+
+    Parameters:
+        gpx_file_path (str): Path to the input GPX file.
+        csv_file_path (str): Path to the output CSV file.
+    """
+    # Read the GPX file
+    gpx = read_gpx_file(gpx_file_path)
+
+    # Read the STL file
+    vertices = read_stl_vertices(stl_path)
+    x_range_mmm = (vertices[:, 0].min(), vertices[:, 0].max())
+    y_range_mmm = (vertices[:, 1].min(), vertices[:, 1].max())
+    z_range_mmm = (vertices[:, 2].min(), vertices[:, 2].max())
+    z_max_mmm = z_range_mmm[1]
+
+    print(f"STL Number of vertices: {len(vertices)}")
+    print(f"STL X range: {x_range_mmm[0]} to {x_range_mmm[1]}")
+    print(f"STL Y range: {y_range_mmm[0]} to {y_range_mmm[1]}")
+    print(f"STL Z range: {z_range_mmm[0]} to {z_range_mmm[1]}")
+
+    # Create the LLA to ECEF transformer once
+    transformer = create_transformer_lla_to_ecef()
+
+    box_enu = convert_points_to_enu(np.array([box_upper_right, box_lower_left]),
+                                    origin=get_first_track_point(gpx),
+                                    transformer=transformer)
+    box_diag_m = distance(box_enu[0], box_enu[1])
+    print(f"Box diagonal meters = {box_diag_m}")
+
+    model_width_mmm = x_range_mmm[1] - x_range_mmm[0]
+    model_height_mmm = y_range_mmm[1] - y_range_mmm[0]
+    model_diag_mm = math.sqrt(model_width_mmm ** 2 + model_height_mmm ** 2)
+    mmm_per_m = model_diag_mm / box_diag_m  # model mm per meter
+    print(f"Meters-to-model-mm scale factor: {mmm_per_m}")
+
+    # Get the origin point (lon, lat, alt of lower left corner of model)
+
+    # this elevation isn't super accurate, but we correct for it later by
+    # iteratively snapping to STL vertices
+    origin_elev = get_elevation_open_elevation(box_lower_left[1], box_lower_left[0])
+
+    print(f"Elevation of bottom-left corner ground surface: ~{origin_elev}")
+    _, origin_top_pt = highest_z_near_origin(vertices)
+    origin_elev -= origin_top_pt[2] / mmm_per_m
+    origin = (box_lower_left[0],
+              box_lower_left[1],
+              origin_elev)
+    print(f"Elevation of bottom-left model corner (m): ~{origin[2]}")
+
+    # Extract all points from the GPX file
+    points = extract_points(gpx)
+    if hike_type == "OUT_AND_BACK":
+        points = remove_after_highest_elev(points)
+
+    # Convert points to ENU coordinates relative to the origin
+    enu_points = convert_points_to_enu(points, origin, transformer)
+    #plot_3d(enu_points[1:1000,:])
+    enu_points = filter_min_distance(enu_points, 10)
+    enu_points *= mmm_per_m  # convert to "model millimeters"
+    #plot_3d(enu_points)
+
+    # TODO: downsample alg that keeps detail where needed adaptively
+    #enu_points = downsample_to(enu_points, 100)
+    #plot_3d(enu_points)
+
+    snapped_to_vertices = find_nearest_vertices(enu_points, vertices)
+    snapped_to_vertices = filter_identical(snapped_to_vertices)
+    #snapped_to_vertices = enu_points
+
+    if hike_type == "LOOP":
+        print("LOOP, putting first point at beginning")
+        # Add a duplicate of the first point at the end, so that we get a closed
+        # loop. Saves some steps in fusion360.
+        print(f"First point: {snapped_to_vertices[0]}")
+        snapped_to_vertices = np.vstack((snapped_to_vertices, snapped_to_vertices[0]))
+        print(f"Last point: {snapped_to_vertices[-1]}")
+    #plot_3d(snapped_to_vertices)
+
+    return snapped_to_vertices
+
 if __name__ == "__main__":
 
-    ###### Inputs
 
-    # ## South Arapaho
-    # stl_path = r'D:\Projects\Python\GpxTracks3d\data\south_arapaho_2\10m_-105.64_40.02_tile_1_1.STL'
-    # gpx_path = r'D:\Projects\Python\GpxTracks3d\data\south_arapaho_2\South_Arapaho.gpx'
-    # csv_out_path = r'south_arapaho2.csv'
-    # box_upper_right = (-105.60270900306992, 40.04201533473237, 0)
-    # box_lower_left = (-105.6771528202086, 39.99179468640927, 0)
-    # model_w_h_mm = (70, 61.4)
-    # max_elev_m = 4117.2
-    # out_n_back = True
-    # ##
-
-    # ## Loyalsock
-    # stl_path = r'D:\Projects\Python\GpxTracks3d\data\loyalsock\10m_-76.55_41.48_tile_1_1.STL'
-    # gpx_path = r'D:\Projects\Python\GpxTracks3d\data\loyalsock\Loyalsock_Link_Trail_Overnight.gpx'
-    # csv_out_path = r'loyalsock.csv'
-    # box_upper_right = (-76.50209028784886, 41.517332857084725, 0)
-    # box_lower_left = (-76.60119612280978, 41.441583047037696, 0)
-    # model_w_h_mm = (50, 50.8)
-    # max_elev_m = 584.9
-    # out_n_back = False
-    # ##
-
-    ## Boulder Three Peaks
-    # stl_path = r'D:\Projects\Python\GpxTracks3d\data\boulder_three_peaks\10m_-105.29_39.97_tile_1_1.STL'
-    # gpx_path = r'D:\Projects\Python\GpxTracks3d\data\boulder_three_peaks\boulder_three_peaks.gpx'
-    # csv_out_path = r'boulder_three_peaks.csv'
-    # box_upper_right = (-105.25157829589844, 40.01993951046981, 0)
-    # box_lower_left = (-105.33517738647461, 39.92443275264491, 0)
-    # model_w_h_mm = (100, 148.4)
-    # max_elev_m = 2603
-    ##
-
-    ####### End Inputs
     json_inputs = load_from_json(os.path.join("data", "jess_boulder_5_peaks", "config.json"))
     snapped_points = snap_gpx_to_stl(json_inputs["gpx_path"],
                                      json_inputs["stl_path"],
@@ -564,5 +530,5 @@ if __name__ == "__main__":
 
     # Fusion 360 interprets 0.1 in the csv to mean 1mm. So we need to account
     # for this in the csv that we write for fusion360.
-    scaled_snapped = snapped_points * 1.0/FUSION_360_MODEL_MM_PER_CSV
+    scaled_snapped = snapped_points #* 1.0/FUSION_360_MODEL_MM_PER_CSV
     write_csv(json_inputs["csv_out_path"], scaled_snapped)
