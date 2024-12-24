@@ -1,7 +1,6 @@
 import numpy as np
 from stl import mesh
 from scipy.spatial import cKDTree
-import pyvista as pv
 
 
 def densify_track_linear(track_points, step=0.01):
@@ -94,6 +93,7 @@ def get_distances_from_track(np_mesh, track_kdtree):
 
     return distances
 
+
 def create_subdivide_mask(np_mesh, track_kdtree, dist_to_track):
     """
     Return a mask that is true for triangles that have any vertex within
@@ -154,7 +154,7 @@ def construct_new_triangles(np_mesh, subdivide_mask):
     return np.array(new_triangles)  # shape (N_new, 3, 3)
 
 
-def refine_along_track(np_mesh, track_kdtree, dist_to_track):
+def upsample_along_track(np_mesh, track_kdtree, dist_to_track):
     print(f"Refining mesh near the GPX track...")
     subdivide_mask = create_subdivide_mask(np_mesh, track_kdtree, dist_to_track)
     new_triangles = construct_new_triangles(np_mesh, subdivide_mask)
@@ -203,8 +203,8 @@ if __name__ == "__main__":
     # Load the STL, subdivide the triangles that are near the track, then
     # perform the cut
     np_mesh = mesh.Mesh.from_file(stl_path)
-    refined_mesh = refine_along_track(np_mesh, track_kdtree, dist_to_refine)
-    refined_mesh = refine_along_track(refined_mesh, track_kdtree, dist_to_refine)
+    refined_mesh = upsample_along_track(np_mesh, track_kdtree, dist_to_refine)
+    refined_mesh = upsample_along_track(refined_mesh, track_kdtree, dist_to_refine)
     cut_mesh = cut_along_track(refined_mesh, track_kdtree, cut_radius_mm)
 
     # 4. Save the modified mesh back to file
