@@ -99,9 +99,9 @@ if __name__ == "__main__":
 
     # Load the STL, subdivide the triangles that are near the track, then
     # perform the cut
-    mesh_upsampled_near_track = auto_cut.upsample_along_track(in_stl_mesh, track_kdtree, dist_to_refine)
-    mesh_upsampled_near_track = auto_cut.upsample_along_track(mesh_upsampled_near_track, track_kdtree, dist_to_refine)
-    cut_mesh = auto_cut.cut_along_track(mesh_upsampled_near_track, track_kdtree, cut_radius_mm)
+    mesh_upsampled_near_track, is_upsampled_mask = auto_cut.upsample_along_track(
+        in_stl_mesh, track_kdtree, dist_to_refine, n_sub=2)
+    cut_mesh = auto_cut.cut_along_track(mesh_upsampled_near_track, track_kdtree, is_upsampled_mask, cut_radius_mm)
 
     # 4. Save the modified mesh back to file
     cut_mesh.save(json_inputs["out_stl_path"])
