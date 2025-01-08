@@ -1,16 +1,8 @@
-import gpxpy
-import csv
-import math
 import json
 import os
-import pyproj
-from pyproj import Transformer
 import numpy as np
 from stl import mesh
 from scipy.spatial import cKDTree
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import requests
 
 from gpx_coordinate_transforms import convert_gpx_track_to_stl_coordinates
 import auto_cut
@@ -26,7 +18,7 @@ import auto_cut
 # - fill the surface: solid, create, boundary fill
 # - convert the surface to mesh: mesh, tesselate (can do low quality)
 # - merge the two meshes as a cut: mesh, modify, combine (has to cook for a few min)
-
+# (Now, autocut.py does the job that fusion 360 used to do)
 
 def load_from_json(json_path):
     with open(json_path, 'r') as f:
@@ -61,6 +53,7 @@ def clean_up_track(enu_points, hike_type):
 
     return enu_points
 
+
 def remove_after_highest_elev(points):
     index_max = max(range(len(points)), key=lambda idx: points[idx][2])
     print(f"Index of maximum elevation: {index_max} (elevation = {points[index_max][2]} m")
@@ -79,10 +72,10 @@ def filter_identical(enu_points):
 
 
 if __name__ == "__main__":
-
+    ## Change the json path to change inputs
     json_inputs = load_from_json(os.path.join("data", "jess_boulder_5_peaks", "config.json"))
 
-
+    ## -- Dont need to change below here
     in_stl_mesh = mesh.Mesh.from_file(json_inputs["in_stl_path"])
     track_points = convert_gpx_track_to_stl_coordinates(json_inputs["gpx_path"],
                                      in_stl_mesh,
@@ -97,8 +90,7 @@ if __name__ == "__main__":
     cut_radius_mm = 0.6
     dist_to_refine = 1.2 * cut_radius_mm  # upsample triangles within this distance from the track
 
-    # Load the STL, subdivide the triangles that are near the track, then
-    # perform the cut
+    # subdivide the triangles that are near the track, then perform the cut
     mesh_upsampled_near_track, is_upsampled_mask = auto_cut.upsample_along_track(
         in_stl_mesh, track_kdtree, dist_to_refine, n_sub=2)
     cut_mesh = auto_cut.cut_along_track(mesh_upsampled_near_track, track_kdtree, is_upsampled_mask, cut_radius_mm)

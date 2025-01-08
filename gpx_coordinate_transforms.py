@@ -21,7 +21,9 @@ def convert_gpx_track_to_stl_coordinates(gpx_file_path, stl_mesh, box_upper_righ
 
     Parameters:
         gpx_file_path (str): Path to the input GPX file.
-        csv_file_path (str): Path to the output CSV file.
+        stl_mesh (numpy-stl mesh.Mesh): stl mesh
+        box_upper_right (): lon, lat, alt of upper-right model corner
+        box_lower_left (): lon, lat, alt of lower left model corner
     """
 
     # Read the STL file
@@ -30,7 +32,7 @@ def convert_gpx_track_to_stl_coordinates(gpx_file_path, stl_mesh, box_upper_righ
     # Create the LLA to ECEF transformer once
     transformer = create_transformer_lla_to_ecef()
 
-    # Get the scale factor between real meters and model mmm
+    # Get the scale factor between real meters and "model mmm"
     mmm_per_m = get_model_scale(box_upper_right, box_lower_left, transformer, vertices)
 
     # Get the origin point (lon, lat, alt of lower left corner of model)
@@ -38,10 +40,10 @@ def convert_gpx_track_to_stl_coordinates(gpx_file_path, stl_mesh, box_upper_righ
 
     # Extract all points from the GPX file
     gpx = read_gpx_file(gpx_file_path)
-    points = extract_points(gpx)
+    lla_track_points = extract_points(gpx)
 
     # Convert points to ENU coordinates relative to the origin
-    enu_points = convert_points_to_enu(points, origin, transformer)
+    enu_points = convert_points_to_enu(lla_track_points, origin, transformer)
     enu_points = filter_min_distance(enu_points, 10)
     enu_points *= mmm_per_m  # convert to "model millimeters"
     #plot_3d(enu_points)
