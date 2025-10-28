@@ -73,28 +73,36 @@ def filter_identical(enu_points):
 
 if __name__ == "__main__":
     ## Change the json path to change inputs
-    json_inputs = load_from_json(os.path.join("data", "jess_pikes_mthon_2025", "config.json"))
+    json_inputs = load_from_json(os.path.join("data", "maroon", "config.json"))
 
     ## -- Dont need to change below here
     in_stl_mesh = mesh.Mesh.from_file(json_inputs["in_stl_path"])
-    track_points = convert_gpx_track_to_stl_coordinates(
-        json_inputs["gpx_path"],
-        in_stl_mesh,
-        json_inputs["box_upper_right"],
-        json_inputs["box_lower_left"]
-    )
-    track_points = clean_up_track(track_points, json_inputs["hike_type"])
 
-    track_points = auto_cut.densify_track_linear(track_points, step=0.01)
-    track_kdtree = cKDTree(track_points)
+    # allow the user to specify one or multiple paths
+    if not isinstance(json_inputs["gpx_path"], list):
+        json_inputs["gpx_path"] = [json_inputs["gpx_path"]]
+
+    track_kdtrees = []
+    for gpx_path in json_inputs["gpx_path"]:
+        track_points = convert_gpx_track_to_stl_coordinates(
+            gpx_path,
+            in_stl_mesh,
+            json_inputs["box_upper_right"],
+            json_inputs["box_lower_left"]
+        )
+        track_points = clean_up_track(track_points, json_inputs["hike_type"])
+
+        track_points = auto_cut.densify_track_linear(track_points, step=0.01)
+        track_kdtrees.append(cKDTree(track_points))
 
     cut_radius_mm = 0.6
     dist_to_refine = 1.2 * cut_radius_mm  # upsample triangles within this distance from the track
 
     # subdivide the triangles that are near the track, then perform the cut
     mesh_upsampled_near_track, is_upsampled_mask = auto_cut.upsample_along_track(
-        in_stl_mesh, track_kdtree, dist_to_refine, n_sub=2)
-    cut_mesh = auto_cut.cut_along_track(mesh_upsampled_near_track, track_kdtree, is_upsampled_mask, cut_radius_mm)
+        in_stl_mesh, track_kdtrees, dist_to_refine, n_sub=2)
+    mesh_upsampled_near_track.save("mesh_upsampled_traverse.stl")
+    cut_mesh = auto_cut.cut_along_track(mesh_upsampled_near_track, track_kdtrees, is_upsampled_mask, cut_radius_mm)
 
     # 4. Save the modified mesh back to file
     out_path = json_inputs["out_stl_path"]
