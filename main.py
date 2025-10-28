@@ -73,15 +73,16 @@ def filter_identical(enu_points):
 
 if __name__ == "__main__":
     ## Change the json path to change inputs
-    json_inputs = load_from_json(os.path.join("data", "jess_boulder_5_peaks", "config.json"))
+    json_inputs = load_from_json(os.path.join("data", "jess_pikes_mthon_2025", "config.json"))
 
     ## -- Dont need to change below here
     in_stl_mesh = mesh.Mesh.from_file(json_inputs["in_stl_path"])
-    track_points = convert_gpx_track_to_stl_coordinates(json_inputs["gpx_path"],
-                                     in_stl_mesh,
-                                     json_inputs["box_upper_right"],
-                                     json_inputs["box_lower_left"],
-                                     )
+    track_points = convert_gpx_track_to_stl_coordinates(
+        json_inputs["gpx_path"],
+        in_stl_mesh,
+        json_inputs["box_upper_right"],
+        json_inputs["box_lower_left"]
+    )
     track_points = clean_up_track(track_points, json_inputs["hike_type"])
 
     track_points = auto_cut.densify_track_linear(track_points, step=0.01)
@@ -96,4 +97,6 @@ if __name__ == "__main__":
     cut_mesh = auto_cut.cut_along_track(mesh_upsampled_near_track, track_kdtree, is_upsampled_mask, cut_radius_mm)
 
     # 4. Save the modified mesh back to file
-    cut_mesh.save(json_inputs["out_stl_path"])
+    out_path = json_inputs["out_stl_path"]
+    cut_mesh.save(out_path)
+    print(f"Saved new STL file: {out_path}")
