@@ -99,7 +99,7 @@ def get_distances_from_track(np_mesh, track_kdtree):
     return distances
 
 
-def create_subdivide_mask(np_mesh, track_kdtree, dist_to_track):
+def create_subdivide_mask(np_mesh, track_kdtrees, dist_to_track):
     """
     Return a mask that is true for triangles that have any vertex within
     dist_to_track of the track, else false.
@@ -123,7 +123,10 @@ def create_subdivide_mask(np_mesh, track_kdtree, dist_to_track):
         tri_verts = np_mesh.vectors[i]  # shape (3,3)
 
         # If ANY vertex is within threshold => subdivide
-        if any(is_near_track(v, track_kdtree, dist_to_track) for v in tri_verts):
+        if any(
+            (any(is_near_track(v, track_kdtree, dist_to_track) for v in tri_verts)
+             for track_kdtree in track_kdtrees)
+        ):
             subdivide_mask[i] = True
 
     return subdivide_mask
@@ -203,16 +206,16 @@ def subdivide_triangle(triangle, n_sub=1):
         return final
 
 
-def upsample_along_track(np_mesh, track_kdtree, dist_to_track, n_sub=1):
+def upsample_along_track(np_mesh, track_kdtrees, dist_to_track, n_sub=1):
     print(f"Refining mesh near the GPX track...")
-    subdivide_mask = create_subdivide_mask(np_mesh, track_kdtree, dist_to_track)
+    subdivide_mask = create_subdivide_mask(np_mesh, track_kdtrees, dist_to_track)
     new_triangles, is_subdivided_mask = construct_new_triangles(np_mesh, subdivide_mask, n_sub)
     refined_mesh = mesh.Mesh(np.zeros(len(new_triangles), mesh.Mesh.dtype))
     refined_mesh.vectors = new_triangles
     return refined_mesh, is_subdivided_mask
 
 
-def cut_along_track(np_mesh, track_kdtree, is_upsampled_mask, cut_radius_mm):
+def cut_along_track(np_mesh, track_kdtrees, is_upsampled_mask, cut_radius_mm):
     """
     Perform a cut along the track: reduce the z coordinate of all STL
     vertices within cut_radius_mm of the track so that they form a circular
@@ -233,7 +236,8 @@ def cut_along_track(np_mesh, track_kdtree, is_upsampled_mask, cut_radius_mm):
         # Each `vectors[i]` is a triangle with 3 vertices
         for j in range(3):
             vertex = np_mesh.vectors[i][j]  # [x, y, z]
-            dist_to_track, idx = track_kdtree.query(vertex)
+            #dist_to_track, idx = track_kdtree.query(vertex)
+            dist_to_track, idx = min((t.query(vertex) for t in track_kdtrees), key=lambda pair: pair[0])
             vertex[2] -= polynomial_drop(dist_to_track, cut_radius_mm)
 
     # 3. Optional: Update normals if you want them recalculated
