@@ -116,36 +116,25 @@ def get_stl_vertices(stl_mesh):
     return vertices
 
 
-def move_closer_to_surface(points, vertices):
+def move_closer_to_surface(points: np.ndarray, vertices: np.ndarray) -> np.ndarray:
     """
-    Moves the points either up or down on the Z axis until the average z-distance
-    between the track and the surface is small. This helps correct for inaccuracies
-    in the elevation of the model origin.
+    "Snap" each track point to the surface in the Z direction.
+
+    For each point (x,y,z), find the mesh vertex with nearest (X,Y)
+    and set z := Z of that vertex.
 
     Parameters:
-        points (numpy.ndarray): Array of track points (Mx3).
-        vertices (numpy.ndarray): Array of mesh vertices (Nx3).
+        points   : (M,3) float array
+        vertices : (N,3) float array
 
     Returns:
-        nearest_vertices (numpy.ndarray): Array of closest vertices (Mx3).
+        adjusted_points : (M,3) float array
     """
-    # Build KD-tree from the mesh vertices
-    tree = KDTree(vertices)
-
-    # Query the tree for nearest neighbors
-    distances, indices = tree.query(points)
-    nearest_vertices = vertices[indices]
-
-    # If we have a non-zero average z-distance between trakc points and the
-    # nearest corresponding surface point, then that probably means that the
-    # whole track needs to be moved up or down a bit. Do this recursively
-    # until it converges.
-    avg_z_diff_mmm = np.mean(points[:,2] - nearest_vertices[:,2])
-    print(f"Average height of track above STL: {avg_z_diff_mmm} mmm")
-    if abs(avg_z_diff_mmm) > 0.01:
-        points[:, 2] -= avg_z_diff_mmm
-        return move_closer_to_surface(points, vertices)
-    return points
+    tree_xy = KDTree(vertices[:, :2])               # build on XY only
+    _, idx = tree_xy.query(points[:, :2])           # nearest in XY
+    adjusted = points.copy()
+    adjusted[:, 2] = vertices[idx, 2]               # z to surface z
+    return adjusted
 
 
 def read_gpx_file(gpx_file_path):
