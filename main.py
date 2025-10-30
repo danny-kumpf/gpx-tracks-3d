@@ -6,6 +6,7 @@ from scipy.spatial import cKDTree
 
 from gpx_coordinate_transforms import convert_gpx_track_to_stl_coordinates
 import auto_cut
+from plotting import plot_mesh_with_track
 
 # In fusion 360, we (use to) have to:
 # - load the STL (import mesh)
@@ -91,6 +92,7 @@ if __name__ == "__main__":
             json_inputs["box_lower_left"]
         )
         track_points = clean_up_track(track_points, json_inputs["hike_type"])
+        plot_mesh_with_track(in_stl_mesh, track_points)
 
         track_points = auto_cut.densify_track_linear(track_points, step=0.01)
         track_kdtrees.append(cKDTree(track_points))

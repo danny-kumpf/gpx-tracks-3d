@@ -1,6 +1,6 @@
 {
   "in_stl_path": "data\\jess_boulder_5_peaks\\10m_-105.30_39.99_tile_1_1.STL",
-  "out_stl_path": "data\\jess_boulder_5_peaks\\jess_boulder_5_peaks_autocut.STL",
+  "out_stl_path": "data\\jess_boulder_5_peaks\\jess_boulder_5_peaks_autocut_new.STL",
   "gpx_path": "data\\jess_boulder_5_peaks\\Welcome_to_Boulder_Anniversary_Edition_.gpx",
   "box_upper_right": [-105.24883171386719, 40.05030170450594, 0],
   "box_lower_left": [-105.34908195800782, 39.92515552967144, 0],
