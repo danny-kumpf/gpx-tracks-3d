@@ -74,7 +74,7 @@ def filter_identical(enu_points):
 
 if __name__ == "__main__":
     ## Change the json path to change inputs
-    json_inputs = load_from_json(os.path.join("data", "maroon", "config.json"))
+    json_inputs = load_from_json(os.path.join("data", "cascades", "config.json"))
 
     ## -- Dont need to change below here
     in_stl_mesh = mesh.Mesh.from_file(json_inputs["in_stl_path"])
@@ -97,7 +97,7 @@ if __name__ == "__main__":
         track_points = auto_cut.densify_track_linear(track_points, step=0.01)
         track_kdtrees.append(cKDTree(track_points))
 
-    cut_radius_mm = 0.6
+    cut_radius_mm = 0.9
     dist_to_refine = 1.2 * cut_radius_mm  # upsample triangles within this distance from the track
 
     # subdivide the triangles that are near the track, then perform the cut

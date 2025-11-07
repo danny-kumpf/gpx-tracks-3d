@@ -91,6 +91,10 @@ def get_model_scale(box_upper_right, box_lower_left, transformer, stl_vertices):
     model_diag_mm = math.sqrt(model_width_mmm ** 2 + model_height_mmm ** 2)
     mmm_per_m = model_diag_mm / box_diag_m  # model mm per meter
     print(f"Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
+    mmm_per_m = 1.0 / 220.45111
+    print(f"HARDCODING Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
+    # TODO: suspicious that this doesn't agree with the logfile. Not a big
+    #       enough diff to cause the shifts I'm seeing, apparently.
     return mmm_per_m
 
 
@@ -257,7 +261,7 @@ def extract_points(gpx):
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
-                lon_deg = point.longitude# + 0.0015  # Degrees
+                lon_deg = point.longitude # + 0.0015  # Degrees
                 lat_deg = point.latitude   # Degrees
                 altitude_m = point.elevation if point.elevation is not None else 0.0  # Meters
                 points.append((lon_deg, lat_deg, altitude_m))# - 17.0))
@@ -404,6 +408,10 @@ def highest_z_near_origin(points, radius=0.00001):
     if close_points.size == 0:
         # No points are within the specified radius
         return None, None
+    print(f"Number of close points to origin: {len(close_points)}")
+    print(f"They are: ")
+    for point in close_points:
+        print(f"  {point}")
 
     # Find the index of the max z among the filtered points
     z_values = close_points[:, 2]

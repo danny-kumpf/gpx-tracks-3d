@@ -15,8 +15,11 @@ def plot_mesh_with_track(stl_mesh: mesh.Mesh, track_points: np.ndarray):
     plotter = pv.Plotter()
     plotter.add_mesh(pv_mesh, color="lightgray", opacity=0.5)
 
+    # Apparently add_lines needs an even number of points
+    even_track_points = track_points if len(track_points) % 2 == 0 else track_points[:-1]
+
     # sample track data: assume numpy arrays x, y, z
-    plotter.add_lines(track_points, color="red", width=3)  # or add_points
+    plotter.add_lines(even_track_points, color="red", width=3)  # or add_points
 
     plotter.show()  # opens interactive window (rotate/zoom/pan)
 
