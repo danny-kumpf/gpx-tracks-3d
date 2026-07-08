@@ -91,8 +91,8 @@ def get_model_scale(box_upper_right, box_lower_left, transformer, stl_vertices):
     model_diag_mm = math.sqrt(model_width_mmm ** 2 + model_height_mmm ** 2)
     mmm_per_m = model_diag_mm / box_diag_m  # model mm per meter
     print(f"Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
-    mmm_per_m = 1.0 / 220.45111
-    print(f"HARDCODING Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
+    #mmm_per_m = 1.0 / 220.45111
+    #print(f"HARDCODING Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
     # TODO: suspicious that this doesn't agree with the logfile. Not a big
     #       enough diff to cause the shifts I'm seeing, apparently.
     return mmm_per_m

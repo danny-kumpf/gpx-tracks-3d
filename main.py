@@ -74,7 +74,7 @@ def filter_identical(enu_points):
 
 if __name__ == "__main__":
     ## Change the json path to change inputs
-    json_inputs = load_from_json(os.path.join("data", "cascades", "config.json"))
+    json_inputs = load_from_json(os.path.join("data", "mr_dlp_ironman", "config.json"))
 
     ## -- Dont need to change below here
     in_stl_mesh = mesh.Mesh.from_file(json_inputs["in_stl_path"])

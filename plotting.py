@@ -51,38 +51,50 @@ def plot_mesh_with_track_w_sliders(stl_mesh, track_points: np.ndarray):
     plotter = pv.Plotter()
     plotter.add_mesh(pv_mesh, color="lightgray", opacity=0.5)
 
-    # store original track so we can reapply shifts
+    # base geometry for preview; do not mutate during interaction
     base = pv.PolyData(track_points)
-    actor = plotter.add_mesh(base, color="red", line_width=3, name="track_actor")
+    plotter.add_mesh(base, color="red", line_width=3, name="track_actor")
 
     shift = {"x": 0.0, "y": 0.0, "z": 0.0}
+    scale = {"s": 1.0}
 
     def update():
         tx, ty, tz = shift["x"], shift["y"], shift["z"]
+        s = scale["s"]
         new_ = base.copy()
-        new_.points = new_.points + np.array([tx, ty, tz])
+        new_.points = new_.points * s + np.array([tx, ty, tz])
         plotter.remove_actor("track_actor")
         plotter.add_mesh(new_, color="red", line_width=3, name="track_actor")
         plotter.render()
 
-    plotter.add_slider_widget(lambda v: _set_and_update(shift, "x", v, update),
-                              rng=[-5.0, 5.0], title="Shift X",
-                              pointa=(0.02, 0.90),
-                              pointb=(0.32, 0.90))
-    plotter.add_slider_widget(lambda v: _set_and_update(shift, "y", v, update),
-                              rng=[-5.0, 5.0], title="Shift Y",
-                              pointa=(0.02, 0.83),
-                              pointb=(0.32, 0.83))
-    plotter.add_slider_widget(lambda v: _set_and_update(shift, "z", v, update),
-                              rng=[-5.0, 5.0], title="Shift Z",
-                              pointa=(0.02, 0.76),
-                              pointb=(0.32, 0.76))
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(shift, "x", v, update),
+        rng=[-5.0, 5.0], title="Shift X",
+        pointa=(0.02, 0.90), pointb=(0.32, 0.90)
+    )
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(shift, "y", v, update),
+        rng=[-5.0, 5.0], title="Shift Y",
+        pointa=(0.02, 0.83), pointb=(0.32, 0.83)
+    )
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(shift, "z", v, update),
+        rng=[-5.0, 5.0], title="Shift Z",
+        pointa=(0.02, 0.76), pointb=(0.32, 0.76)
+    )
+    # New uniform scale slider
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(scale, "s", v, update),
+        rng=[0.7, 1.3], value=1.0, title="Scale",
+        pointa=(0.02, 0.69), pointb=(0.32, 0.69)
+    )
 
     plotter.show()
 
     final_shift = np.array([shift["x"], shift["y"], shift["z"]])
-    track_points += final_shift
-
+    final_scale = scale["s"]
+    # Apply once at the end. In-place update to caller array.
+    track_points[:] = track_points * final_scale + final_shift
 
 def _set_and_update(shift, axis, value, update_fn):
     shift[axis] = value
