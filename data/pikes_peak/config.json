@@ -1,9 +1,0 @@
-{
-  "stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\pikes_peak\\10m_-105.07_38.85_tile_1_1.STL",
-  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\pikes_peak\\pikes.gpx",
-  "csv_out_path": "data\\pikes_peak\\pikes_peak_f360.csv",
-  "box_upper_right": [-104.98554607696533, 38.897028368604026, 0],
-  "box_lower_left": [-105.14896770782471, 38.802642938043505, 0],
-  "max_elev_m": 4302.3,
-  "hike_type": "OUT_AND_BACK"
-}
