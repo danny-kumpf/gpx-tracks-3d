@@ -101,9 +101,11 @@ Divide by 1000 to get metres of real terrain per millimetre of model — `140.69
 Model-mm-to-Meters scale factor: 137.399...
 ```
 
-**These two will not agree**, typically by 0.5–2.5%, and the model's is always the smaller. That is expected. TouchTerrain rounds the region outward to whole elevation cells, so the STL covers slightly more ground than the box you dragged — but the code only knows about the box. It therefore thinks the terrain is smaller than it is and draws the track slightly too large.
+**These two will not agree due to an as-yet unfixed issue**, typically by 0.5–2.5%, and the model's is always the smaller. That is expected. TouchTerrain rounds the region outward to whole elevation cells, so the STL covers slightly more ground than the box you dragged — but the code only knows about the box. It therefore thinks the terrain is smaller than it is and draws the track slightly too large.
 
 This is what the **Scale** slider is for. If the logfile says `140.69` and the script says `137.40`, the track is `140.69 / 137.40 = 1.024` — about 2.4% too big — so nudge Scale to roughly `0.976`. The bigger the mismatch between the two numbers, the more correction you need.
+
+TODO: Fix this and remove the scale slider. Claude found this while writing this README, thanks Claude.
 
 ## The config file
 
@@ -131,6 +133,8 @@ The `config.json` looks like this:
 The corners are **longitude first, then latitude** — the reverse of how TouchTerrain's logfile lists them. They are the *only* thing telling the code where the model sits on Earth, so if they're wrong, or copied from a different tile, the track lands in the wrong place. The third number is altitude; it is ignored, so leave it at `0`.
 
 `hike_type` cleans up the track before cutting. `OUT_AND_BACK` discards everything after the high point, so the return leg doesn't re-cut the same groove. `LOOP` closes the loop by joining the last point to the first. `NONE` leaves the track alone — use it for point-to-point routes.
+
+Only those first two values do anything; any other string falls through unchanged. Several configs in `data/` say `POINT_TO_POINT`, which behaves exactly like `NONE`.
 
 ## Run
 
