@@ -4,6 +4,8 @@ Carve a GPS track into a 3D-printable terrain model.
 
 Give it a GPX file from a hike, run, or ride, plus an STL terrain tile covering the same area, and it cuts the route into the surface of the terrain as a smooth groove. The result is a new STL you can print — a physical map of the mountain with your track engraved along it.
 
+![A 3D-printed terrain model in cream filament, with a hiking route cut into its surface as a continuous groove winding up a valley and over a ridge.](hike_3d_print.jpg)
+
 It georeferences the track for you. You never move the track by hand in CAD: the code works out where the model sits on the Earth from two corner coordinates you supply, converts every GPS point into the model's coordinate system, and drapes the track onto the terrain surface.
 
 ## Requirements
