@@ -1,9 +1,0 @@
-{
-  "stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\tammany\\10m_-75.12_40.97_tile_1_1.STL",
-  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\tammany\\tammany_uncle_jeff_aunt_cheryl.gpx",
-  "csv_out_path": "data\\tammany\\tammany_f360.csv",
-  "box_upper_right": [-75.10354896850586, 40.985874065720985, 0],
-  "box_lower_left": [-75.14526268310547, 40.954184846532975, 0],
-  "max_elev_m": 465,
-  "hike_type": "LOOP"
-}

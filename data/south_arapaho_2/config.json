@@ -1,0 +1,8 @@
+{
+  "in_stl_path": "data\\south_arapaho_2\\10m_-105.64_40.02_tile_1_1.STL",
+  "out_stl_path": "data\\south_arapaho_2\\south_arapaho_2_autocut.STL",
+  "gpx_path": "data\\south_arapaho_2\\South_Arapaho.gpx",
+  "box_upper_right": [-105.60270900306992, 40.04201533473237, 0],
+  "box_lower_left": [-105.6771528202086, 39.99179468640927, 0],
+  "hike_type": "OUT_AND_BACK"
+}

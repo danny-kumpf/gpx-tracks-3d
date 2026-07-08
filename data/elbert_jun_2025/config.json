@@ -1,0 +1,8 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\elbert_jun_2025\\10m_-106.44_39.12_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\elbert_jun_2025\\elbert_autocut_vectorized.stl",
+  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\elbert_jun_2025\\Highest_point_in_CO_.gpx",
+  "box_upper_right": [-106.39494812166745, 39.16656064179005, 0],
+  "box_lower_left": [-106.48744499361571, 39.06747100304548, 0],
+  "hike_type": "OUT_AND_BACK"
+}

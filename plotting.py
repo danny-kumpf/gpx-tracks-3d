@@ -1,0 +1,104 @@
+import pyvista as pv
+from stl import mesh
+import numpy as np
+
+def plot_mesh_with_track(stl_mesh: mesh.Mesh, track_points: np.ndarray):
+    """
+
+    :param stl_mesh:
+    :param track_points:
+    :return:
+    """
+    pv_mesh = stlmesh_to_pvmesh(stl_mesh)
+
+    # create plotter
+    plotter = pv.Plotter()
+    plotter.add_mesh(pv_mesh, color="lightgray", opacity=0.5)
+
+    # Apparently add_lines needs an even number of points
+    even_track_points = track_points if len(track_points) % 2 == 0 else track_points[:-1]
+
+    # sample track data: assume numpy arrays x, y, z
+    plotter.add_lines(even_track_points, color="red", width=3)  # or add_points
+
+    plotter.show()  # opens interactive window (rotate/zoom/pan)
+
+
+def stlmesh_to_pvmesh(stl_mesh):
+    """
+    Convert an `stl.mesh.Mesh` object (numpy-stl) to a PyVista PolyData mesh.
+
+    Parameters:
+        stl_mesh: instance of stl.mesh.Mesh
+
+    Returns:
+        pv.PolyData
+    """
+    verts = stl_mesh.vectors.reshape(-1, 3)
+
+    faces = np.hstack(
+        np.column_stack([
+            np.full(len(stl_mesh.vectors), 3),
+            np.arange(len(verts)).reshape(-1, 3)
+        ])
+    )
+
+    return pv.PolyData(verts, faces)
+
+def plot_mesh_with_track_w_sliders(stl_mesh, track_points: np.ndarray):
+    pv_mesh = stlmesh_to_pvmesh(stl_mesh)
+
+    plotter = pv.Plotter()
+    plotter.add_mesh(pv_mesh, color="lightgray", opacity=0.5)
+
+    # base geometry for preview; do not mutate during interaction
+    base = pv.PolyData(track_points)
+    plotter.add_mesh(base, color="red", line_width=3, name="track_actor")
+
+    shift = {"x": 0.0, "y": 0.0, "z": 0.0}
+    scale = {"s": 1.0}
+
+    def update():
+        tx, ty, tz = shift["x"], shift["y"], shift["z"]
+        s = scale["s"]
+        new_ = base.copy()
+        new_.points = new_.points * s + np.array([tx, ty, tz])
+        plotter.remove_actor("track_actor")
+        plotter.add_mesh(new_, color="red", line_width=3, name="track_actor")
+        plotter.render()
+
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(shift, "x", v, update),
+        rng=[-5.0, 5.0], title="Shift X",
+        pointa=(0.02, 0.90), pointb=(0.32, 0.90)
+    )
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(shift, "y", v, update),
+        rng=[-5.0, 5.0], title="Shift Y",
+        pointa=(0.02, 0.83), pointb=(0.32, 0.83)
+    )
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(shift, "z", v, update),
+        rng=[-5.0, 5.0], title="Shift Z",
+        pointa=(0.02, 0.76), pointb=(0.32, 0.76)
+    )
+    # New uniform scale slider
+    plotter.add_slider_widget(
+        lambda v: _set_and_update(scale, "s", v, update),
+        rng=[0.7, 1.3], value=1.0, title="Scale",
+        pointa=(0.02, 0.69), pointb=(0.32, 0.69)
+    )
+
+    plotter.show()
+
+    final_shift = np.array([shift["x"], shift["y"], shift["z"]])
+    final_scale = scale["s"]
+    # Apply once at the end. In-place update to caller array.
+    track_points[:] = track_points * final_scale + final_shift
+
+def _set_and_update(shift, axis, value, update_fn):
+    shift[axis] = value
+    update_fn()
+
+
+

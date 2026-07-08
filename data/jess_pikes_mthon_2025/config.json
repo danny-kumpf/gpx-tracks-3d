@@ -1,0 +1,10 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\jess_pikes_mthon_2025\\814831877199\\10m_-104.99_38.85_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\jess_pikes_mthon_2025\\just_crags.stl",
+  "gpx_path": [
+    "D:\\Projects\\Python\\GpxTracks3d\\data\\pikes_peak\\pikes.gpx"
+  ],
+  "box_upper_right": [-104.90667143554687, 38.89283831038008, 0],
+  "box_lower_left": [-105.07776060791014, 38.81262844042284, 0],
+  "hike_type": "NONE"
+}

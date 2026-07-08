@@ -1,8 +1,0 @@
-{
-  "stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\loyalsock\\10m_-76.53_41.48_tile_1_1.STL",
-  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\loyalsock\\Loyalsock_Link_Trail_Overnight.gpx",
-  "csv_out_path": "data\\loyalsock\\loyalsock_f360.csv",
-  "box_upper_right": [-76.43873115844723, 41.53179118511545, 0],
-  "box_lower_left": [-76.62078892626953, 41.43332775623359, 0],
-  "hike_type": "LOOP"
-}

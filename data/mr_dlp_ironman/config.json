@@ -1,0 +1,10 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\mr_dlp_ironman\\819443146923\\10m_-122.88_38.62_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\mr_dlp_ironman\\mr_dlp_ironman.STL",
+  "gpx_path": [
+    "D:\\Projects\\Python\\GpxTracks3d\\data\\mr_dlp_ironman\\Vineman_2016_Bike.gpx",
+    "D:\\Projects\\Python\\GpxTracks3d\\data\\mr_dlp_ironman\\Vineman_2016_Run.gpx"],
+  "box_upper_right": [-122.68512043881809, 38.76516118838665, 0],
+  "box_lower_left": [-123.06529316831033, 38.46526040395834, 0],
+  "hike_type": "NONE"
+}

@@ -1,8 +1,0 @@
-{
-  "stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\olympus_michelle\\10m_-111.77_40.65_tile_1_1.STL",
-  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\olympus_michelle\\olympus_michelle.gpx",
-  "csv_out_path": "data\\olympus_michelle\\olympus_michelle_f360.csv",
-  "box_upper_right": [-111.72031542129517, 40.675502583975955, 0],
-  "box_lower_left": [-111.81009432144165, 40.61558943940972, 0],
-  "hike_type": "OUT_AND_BACK"
-}

@@ -1,0 +1,8 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\sawtooth\\815445888272\\10m_-105.68_39.58_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\sawtooth\\sawtooth_autocut.stl",
+  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\sawtooth\\Bierstadt_sawtooth_blue_sky.gpx",
+  "box_upper_right": [-105.62469331421137, 39.603544265205535, 0],
+  "box_lower_left": [-105.73003617920162, 39.5469136156093, 0],
+  "hike_type": "NONE"
+}
