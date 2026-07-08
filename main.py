@@ -6,6 +6,7 @@ from scipy.spatial import cKDTree
 
 from gpx_coordinate_transforms import convert_gpx_track_to_stl_coordinates
 import auto_cut
+from plotting import plot_mesh_with_track
 
 # In fusion 360, we (use to) have to:
 # - load the STL (import mesh)
@@ -73,7 +74,7 @@ def filter_identical(enu_points):
 
 if __name__ == "__main__":
     ## Change the json path to change inputs
-    json_inputs = load_from_json(os.path.join("data", "maroon", "config.json"))
+    json_inputs = load_from_json(os.path.join("data", "mr_dlp_ironman", "config.json"))
 
     ## -- Dont need to change below here
     in_stl_mesh = mesh.Mesh.from_file(json_inputs["in_stl_path"])
@@ -91,11 +92,12 @@ if __name__ == "__main__":
             json_inputs["box_lower_left"]
         )
         track_points = clean_up_track(track_points, json_inputs["hike_type"])
+        plot_mesh_with_track(in_stl_mesh, track_points)
 
         track_points = auto_cut.densify_track_linear(track_points, step=0.01)
         track_kdtrees.append(cKDTree(track_points))
 
-    cut_radius_mm = 0.6
+    cut_radius_mm = 0.9
     dist_to_refine = 1.2 * cut_radius_mm  # upsample triangles within this distance from the track
 
     # subdivide the triangles that are near the track, then perform the cut

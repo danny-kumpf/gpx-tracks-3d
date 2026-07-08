@@ -11,6 +11,7 @@ from scipy.spatial import KDTree
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import requests
+from plotting import plot_mesh_with_track, plot_mesh_with_track_w_sliders
 
 
 def convert_gpx_track_to_stl_coordinates(gpx_file_path, stl_mesh, box_upper_right, box_lower_left):
@@ -42,15 +43,28 @@ def convert_gpx_track_to_stl_coordinates(gpx_file_path, stl_mesh, box_upper_righ
     gpx = read_gpx_file(gpx_file_path)
     lla_track_points = extract_points(gpx)
 
+    summit_lat, summit_lon, summit_alt = highest_point_lat_lon(lla_track_points)
+    print(f"Summit lat: {summit_lat}, Summit lon: {summit_lon}, Summit alt: {summit_alt}")
+
     # Convert points to ENU coordinates relative to the origin
     enu_points = convert_points_to_enu(lla_track_points, origin, transformer)
     enu_points = filter_min_distance(enu_points, 10)
     enu_points *= mmm_per_m  # convert to "model millimeters"
     #plot_3d(enu_points)
+    plot_mesh_with_track_w_sliders(stl_mesh, enu_points)
 
     # move the points vertically until they sit as close to the surface as possible
     return move_closer_to_surface(enu_points, vertices)
 
+def highest_point_lat_lon(lla_track_points: np.ndarray):
+    """
+    lla_track_points: Nx3 array [lat, lon, alt]
+    Returns (lat, lon) at max altitude.
+    """
+    # alt is column 2
+    idx = np.argmax(lla_track_points[:, 2])
+    lon, lat, alt = lla_track_points[idx]
+    return lat, lon, alt
 
 def get_model_scale(box_upper_right, box_lower_left, transformer, stl_vertices):
     """
@@ -77,6 +91,10 @@ def get_model_scale(box_upper_right, box_lower_left, transformer, stl_vertices):
     model_diag_mm = math.sqrt(model_width_mmm ** 2 + model_height_mmm ** 2)
     mmm_per_m = model_diag_mm / box_diag_m  # model mm per meter
     print(f"Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
+    #mmm_per_m = 1.0 / 220.45111
+    #print(f"HARDCODING Model-mm-to-Meters scale factor: {1.0 / mmm_per_m}")
+    # TODO: suspicious that this doesn't agree with the logfile. Not a big
+    #       enough diff to cause the shifts I'm seeing, apparently.
     return mmm_per_m
 
 
@@ -87,7 +105,8 @@ def get_model_origin_lla(box_lower_left, mmm_per_m, stl_vertices):
     """
     # this elevation isn't super accurate, but we correct for it later by
     # iteratively snapping to STL vertices
-    origin_elev = get_elevation_open_elevation(box_lower_left[1], box_lower_left[0])
+    #origin_elev = get_elevation_open_elevation(box_lower_left[1], box_lower_left[0])
+    origin_elev = get_elevation_opentopodata(box_lower_left[1], box_lower_left[0])
 
     print(f"Elevation of bottom-left corner ground surface: ~{origin_elev}")
     _, origin_top_pt = highest_z_near_origin(stl_vertices)
@@ -135,6 +154,33 @@ def move_closer_to_surface(points: np.ndarray, vertices: np.ndarray) -> np.ndarr
     adjusted = points.copy()
     adjusted[:, 2] = vertices[idx, 2]               # z to surface z
     return adjusted
+
+# def shift_track_to_surface(track_xyz: np.ndarray, stl_vertices: np.ndarray) -> np.ndarray:
+#     """
+#     track_xyz: (N,3) array of track points in same coordinate space as STL
+#     stl_vertices: (M,3) array of vertex positions from the STL mesh
+#
+#     Returns shifted track (N,3) with one global offset applied.
+#     """
+#     # kd-tree on STL verts
+#     tree = KDTree(stl_vertices)
+#
+#     # nearest vertex index for each track point
+#     _, idx = tree.query(track_xyz)
+#
+#     # nearest vertex positions
+#     nearest = stl_vertices[idx]
+#
+#     # vectors from vertex -> track point
+#     vectors = track_xyz - nearest
+#
+#     # average vector
+#     avg_vec = vectors.mean(axis=0)
+#     print(f"Average offset track to surface: {avg_vec}")
+#
+#     # shift entire track
+#     return track_xyz + avg_vec
+
 
 
 def read_gpx_file(gpx_file_path):
@@ -215,10 +261,10 @@ def extract_points(gpx):
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
-                lon_deg = point.longitude  # Degrees
-                lat_deg = point.latitude    # Degrees
+                lon_deg = point.longitude # + 0.0015  # Degrees
+                lat_deg = point.latitude   # Degrees
                 altitude_m = point.elevation if point.elevation is not None else 0.0  # Meters
-                points.append((lon_deg, lat_deg, altitude_m))
+                points.append((lon_deg, lat_deg, altitude_m))# - 17.0))
 
     return np.array(points)
 
@@ -362,6 +408,10 @@ def highest_z_near_origin(points, radius=0.00001):
     if close_points.size == 0:
         # No points are within the specified radius
         return None, None
+    print(f"Number of close points to origin: {len(close_points)}")
+    print(f"They are: ")
+    for point in close_points:
+        print(f"  {point}")
 
     # Find the index of the max z among the filtered points
     z_values = close_points[:, 2]
@@ -419,14 +469,33 @@ def get_elevation_open_elevation(lat, lon):
     """
     url = "https://api.open-elevation.com/api/v1/lookup"
     params = {"locations": f"{lat}, {lon}"}
+    print(f"params: {params}")
     try:
         response = requests.get(url, params=params)
+        print(f"response: {response}")
         data = response.json()
+        print(f"data: {data}")
         elevation = data["results"][0]["elevation"]  # in meters
         return elevation
     except Exception as e:
-        print(f"Error retrieving elevation: {e}")
-        return None
+        print(f"Error retrieving open_elevation elevation: {e}")
+        raise e
+
+def get_elevation_opentopodata(lat, lon, dataset="srtm90m"):
+    """
+    Query the OpenTopoData API for elevation in meters.
+    Returns elevation or None on failure.
+    """
+    url = f"https://api.opentopodata.org/v1/{dataset}"
+    params = {"locations": f"{lat},{lon}"}
+
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        data = r.json()
+        return data["results"][0]["elevation"]
+    except Exception as e:
+        print(f"Error retrieving opentopodata elevation: {e}")
+        raise e
 
 
 

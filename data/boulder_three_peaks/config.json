@@ -1,0 +1,8 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\boulder_three_peaks\\10m_-105.29_39.97_tile_1_1.STL",
+  "out_stl_path": "data\\boulder_three_peaks\\autocut.stl",
+  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\boulder_three_peaks\\boulder_three_peaks.gpx",
+  "box_upper_right": [-105.25157829589844, 40.01993951046981, 0],
+  "box_lower_left": [-105.33517738647461, 39.92443275264491, 0],
+  "hike_type": "POINT_TO_POINT"
+}
