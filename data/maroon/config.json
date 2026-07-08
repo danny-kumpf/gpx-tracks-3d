@@ -1,0 +1,11 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\maroon\\814977967497\\10m_-106.97_39.07_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\maroon\\maroon_combined_autocut.stl",
+  "gpx_path": [
+    "D:\\Projects\\Python\\GpxTracks3d\\data\\maroon\\Maroon_bells_traverse.gpx",
+    "D:\\Projects\\Python\\GpxTracks3d\\data\\maroon\\Pyramid_peak_.gpx"
+  ],
+  "box_upper_right": [-106.92752634521483, 39.11077621068036, 0],
+  "box_lower_left": [-107.00385843749999, 39.021877957798324, 0],
+  "hike_type": "NONE"
+}

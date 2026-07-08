@@ -1,0 +1,8 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\cascades\\748034951985\\10m_-120.95_48.76_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\cascades\\cascades_autocut.stl",
+  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\cascades\\devils_dome.gpx",
+  "box_upper_right": [-120.77525993652344, 48.85281271912335, 0],
+  "box_lower_left": [-121.11720939941407, 48.675391037575324, 0],
+  "hike_type": "NONE"
+}

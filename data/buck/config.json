@@ -1,0 +1,8 @@
+{
+  "in_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\buck\\TetonsModelWithPhelps\\10m_-110.81_43.70_tile_1_1.STL",
+  "out_stl_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\buck\\tetons_buck_autocut.stl",
+  "gpx_path": "D:\\Projects\\Python\\GpxTracks3d\\data\\buck\\tetons_buck.gpx",
+  "box_upper_right": [-110.73851003044435, 43.76991834304237, 0],
+  "box_lower_left": [-110.87978734367677, 43.626696619635354, 0],
+  "hike_type": "NONE"
+}

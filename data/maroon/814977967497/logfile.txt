@@ -1,0 +1,46 @@
+Log for creating 3D model tile(s) for  10m_-106.97_39.07 
+ 
+DEM_name = USGS/3DEP/10m 
+trlat = 39.11077621068036 
+trlon = -106.92752634521483 
+bllat = 39.021877957798324 
+bllon = -107.00385843749999 
+printres = 0.4 
+ntilesx = 1 
+ntilesy = 1 
+tilewidth = 70.0 
+basethick = 2 
+zscale = 1.0 
+fileformat = STLb 
+no_bottom = False 
+unprojected = False 
+no_normals = True 
+
+process started: 14:46:07.499222 
+
+Region (lat/lon):
+   39.11077621068036 -106.92752634521483 (top right)
+   39.021877957798324 -107.00385843749999 (bottom left) 
+center at [-106.96569239135741, 39.06632708423935], UTM13N, EPSG:32613 
+lon/lat size in degrees: [0.07633209228515625, 0.08889825288203923] 
+Earth Engine raster: USGS/3DEP/10m 
+URL for geotiff is:  https://earthengine.googleapis.com/v1/projects/touchterrainstandalone2022/thumbnails/9859bb268884c9fe1752797d13ecbc16-2b2fdefccfa5313f32c4fda37691a7b2:getPixels 
+ geotiff size: 0.15575313568115234 Mb 
+ cell size 37.74968198009108 m, upper left corner (x/y):  326496.99944580777 4330983.26389387 
+full (untiled) raster (height,width)  (266, 182) float64 elev. min/max: 2813.65869140625 4303.0185546875 
+cell size: 37.74968198009108 m  
+adjusted print res from the requested 0.4 mm to 0.38461538461538464 mm to ensure correct model dimensions 
+total model size in mm: 70.0 x 102.3076923076923 
+map scale is 1 : 98149.1731482368 
+Cells per tile (x/y) 182 x 266 
+using single-core only (multi-core is currently broken :( 
+
+1 x 1 tiles, tile size 70.00 x 102.31 mm
+ 
+tile 1 1 : height:  2.0 - 17.174451454948457 mm , file size: 5 Mb 
+
+total size for all tiles: 4.7 Mb 
+added full geotiff as 10m_-106.97_39.07.tif 
+added histogram of elevation values as 10m_-106.97_39.07_DEMandHistogram.png 
+
+processing finished: 14:46:09.393835 
