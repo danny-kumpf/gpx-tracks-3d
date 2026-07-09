@@ -1,5 +1,7 @@
 # GpxTracks3d
 
+[This README was written by Claude Code (Opus 4.8)]
+
 Carve a GPS track into a 3D-printable terrain model.
 
 Give it a GPX file from a hike, run, or ride, plus an STL terrain tile covering the same area, and it cuts the route into the surface of the terrain as a smooth groove. The result is a new STL you can print — a physical map of the mountain with your track engraved along it.
